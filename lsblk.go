@@ -3,36 +3,43 @@ package lsblk
 import (
 	"encoding/json"
 	"errors"
+	"os"
 	"os/exec"
+	"sort"
+	"strconv"
 	"strings"
+
+	"github.com/dustin/go-humanize"
+	"github.com/olekukonko/tablewriter"
 )
 
 type Device struct {
-	Name       string `json:"name"`
-	Path       string `json:"path"`
-	Fsavail    string `json:"fsavail"`
-	Fssize     string `json:"fssize"`
-	Fstype     string `json:"fstype"`
-	Pttype     string `json:"pttype"`
-	Fsused     string `json:"fsused"`
-	Fsuse      string `json:"fsuse%"`
-	Mountpoint string `json:"mountpoint"`
-	Label      string `json:"label"`
-	UUID       string `json:"uuid"`
-	Rm         bool   `json:"rm"`
-	Hotplug    bool   `json:"hotplug"`
-	Serial     string `json:"serial"`
-	State      string `json:"state"`
-	Group      string `json:"group"`
-	Type       string `json:"type"`
-	Alignment  int    `json:"alignment"`
-	Wwn        string `json:"wwn"`
-	Hctl       string `json:"hctl"`
-	Tran       string `json:"tran"`
-	Subsystems string `json:"subsystems"`
-	Rev        string `json:"rev"`
-	Vendor     string `json:"vendor"`
-	Model      string `json:"model"`
+	Name       string   `json:"name"`
+	Path       string   `json:"path"`
+	Fsavail    string   `json:"fsavail"`
+	Fssize     string   `json:"fssize"`
+	Fstype     string   `json:"fstype"`
+	Pttype     string   `json:"pttype"`
+	Fsused     string   `json:"fsused"`
+	Fsuse      string   `json:"fsuse%"`
+	Mountpoint string   `json:"mountpoint"`
+	Label      string   `json:"label"`
+	UUID       string   `json:"uuid"`
+	Rm         bool     `json:"rm"`
+	Hotplug    bool     `json:"hotplug"`
+	Serial     string   `json:"serial"`
+	State      string   `json:"state"`
+	Group      string   `json:"group"`
+	Type       string   `json:"type"`
+	Alignment  int      `json:"alignment"`
+	Wwn        string   `json:"wwn"`
+	Hctl       string   `json:"hctl"`
+	Tran       string   `json:"tran"`
+	Subsystems string   `json:"subsystems"`
+	Rev        string   `json:"rev"`
+	Vendor     string   `json:"vendor"`
+	Model      string   `json:"model"`
+	Children   []Device `json:"children"`
 }
 
 func runCmd(command string) (output []byte, err error) {
@@ -42,6 +49,50 @@ func runCmd(command string) (output []byte, err error) {
 	commands := strings.Fields(command)
 	output, err = exec.Command(commands[0], commands[1:]...).Output()
 	return output, err
+}
+
+func PrintDevices(devices map[string]Device) {
+	var devList []Device
+	for _, dev := range devices {
+		devList = append(devList, dev)
+	}
+	sort.Slice(devList, func(i, j int) bool {
+		return devList[i].Name < devList[j].Name
+	})
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"name", "hctl", "mount", "pttype", "vendor", "model"})
+
+	for _, dev := range devList {
+		table.Append([]string{dev.Name, dev.Hctl, dev.Mountpoint, dev.Pttype, dev.Vendor, dev.Model})
+	}
+	table.Render() // Send output
+}
+
+func PrintPartitions(devices map[string]Device) {
+	partDevMap := make(map[string]string)
+	var partList []Device
+	for _, dev := range devices {
+		for _, child := range dev.Children {
+			partDevMap[child.Name] = dev.Name
+			child.Vendor = dev.Vendor
+			child.Model = dev.Model
+			partList = append(partList, child)
+		}
+	}
+	sort.Slice(partList, func(i, j int) bool {
+		return partList[i].Name < partList[j].Name
+	})
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"disk", "partition", "label", "fstype", "fsavail", "fssize", "fsuse%", "type", "mount", "pttype", "vendor", "model"})
+
+	for _, part := range partList {
+		avail, _ := strconv.ParseUint(part.Fsavail, 10, 64)
+		size, _ := strconv.ParseUint(part.Fssize, 10, 64)
+		table.Append([]string{partDevMap[part.Name], part.Name, part.Label, part.Fstype, humanize.Bytes(avail), humanize.Bytes(size), part.Fsuse, part.Type, part.Mountpoint, part.Pttype, part.Vendor, part.Model})
+	}
+	table.Render() // Send output
 }
 
 // NewLSSCSI is a constructor for LSSCSI
