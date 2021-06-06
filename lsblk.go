@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/dustin/go-humanize"
+	"github.com/jaypipes/ghw"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -110,9 +111,20 @@ func ListDevices() (devices map[string]Device, err error) {
 		return nil, err
 	}
 
+	block, err := ghw.Block()
+	if err != nil {
+		return nil, err
+	}
+
 	devices = make(map[string]Device)
 	for _, device := range lsblkRsp["blockdevices"] {
 		devices[device.Name] = device
 	}
+	for _, disk := range block.Disks {
+		device := devices[disk.Name]
+		device.Serial = disk.SerialNumber
+		devices[disk.Name] = device
+	}
+
 	return devices, nil
 }
