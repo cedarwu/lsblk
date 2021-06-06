@@ -61,10 +61,12 @@ func PrintDevices(devices map[string]Device) {
 	})
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"name", "hctl", "mount", "pttype", "vendor", "model"})
+	table.SetHeader([]string{"name", "hctl", "fstype", "fsavail", "fssize", "fsuse%", "type", "mount", "pttype", "vendor", "model"})
 
 	for _, dev := range devList {
-		table.Append([]string{dev.Name, dev.Hctl, dev.Mountpoint, dev.Pttype, dev.Vendor, dev.Model})
+		avail, _ := strconv.ParseUint(dev.Fsavail, 10, 64)
+		size, _ := strconv.ParseUint(dev.Fssize, 10, 64)
+		table.Append([]string{dev.Name, dev.Hctl, dev.Fstype, humanize.Bytes(avail), humanize.Bytes(size), dev.Fsuse, dev.Type, dev.Mountpoint, dev.Pttype, dev.Vendor, dev.Model})
 	}
 	table.Render() // Send output
 }
