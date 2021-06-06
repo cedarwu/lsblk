@@ -3,7 +3,6 @@ package lsblk
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"sort"
@@ -129,8 +128,6 @@ func ListDevices() (devices map[string]Device, err error) {
 		serial, err := getSerial(device.Name)
 		if err == nil {
 			device.Serial = serial
-		} else {
-			fmt.Printf("get serial err: %v,%v\n", device.Name, err)
 		}
 		devices[device.Name] = device
 	}
@@ -140,5 +137,5 @@ func ListDevices() (devices map[string]Device, err error) {
 
 func getSerial(devName string) (serial string, err error) {
 	output, err := runBash("udevadm info --query=property --name=/dev/" + devName + " | grep SCSI_IDENT_SERIAL | awk -F'=' '{print $2}'")
-	return string(output), err
+	return strings.TrimSpace(string(output)), err
 }
