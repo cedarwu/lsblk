@@ -52,6 +52,14 @@ func runCmd(command string) (output []byte, err error) {
 	return output, err
 }
 
+func runBash(command string) (output []byte, err error) {
+	if len(command) == 0 {
+		return nil, errors.New("invalid command")
+	}
+	output, err = exec.Command("bash", "-c", command).Output()
+	return output, err
+}
+
 func PrintDevices(devices map[string]Device) {
 	var devList []Device
 	for _, dev := range devices {
@@ -131,6 +139,6 @@ func ListDevices() (devices map[string]Device, err error) {
 }
 
 func getSerial(devName string) (serial string, err error) {
-	output, err := runCmd("bash -c udevadm info --query=property --name=/dev/" + devName + " | grep SCSI_IDENT_SERIAL | awk -F'=' '{print $2}'")
+	output, err := runBash("udevadm info --query=property --name=/dev/" + devName + " | grep SCSI_IDENT_SERIAL | awk -F'=' '{print $2}'")
 	return string(output), err
 }
