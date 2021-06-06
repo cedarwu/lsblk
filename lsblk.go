@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/dustin/go-humanize"
-	"github.com/jaypipes/ghw"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -111,20 +110,24 @@ func ListDevices() (devices map[string]Device, err error) {
 		return nil, err
 	}
 
-	block, err := ghw.Block()
-	if err != nil {
-		return nil, err
-	}
+	// block, err := ghw.Block()
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	devices = make(map[string]Device)
 	for _, device := range lsblkRsp["blockdevices"] {
+		serial, err := getSerial(device.Name)
+		if err == nil {
+			device.Serial = serial
+		}
 		devices[device.Name] = device
-	}
-	for _, disk := range block.Disks {
-		device := devices[disk.Name]
-		device.Serial = disk.SerialNumber
-		devices[disk.Name] = device
 	}
 
 	return devices, nil
+}
+
+func getSerial(devName string) (serial string, err error) {
+	output, err := runCmd("bash -c udevadm info --query=property --name=/dev/" + devName + " | grep SCSI_IDENT_SERIAL | awk -F'=' '{print $2}'")
+	return string(output), err
 }
